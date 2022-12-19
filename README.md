@@ -1,3 +1,7 @@
+"Runtime: 16/16 You are only 1 of 3 that I've seen do get that!!!"
+
+   - michaelw 01/06/2022, 9:12:23 am
+
 # common_words
 A simple bash project - perfect score on auto marker
 #!/bin/bash
@@ -12,3 +16,9 @@ largest number of files in the specified directory. Your program must also repor
 word is Nth most common
 
  -w option is followed by a word. and then determines the frequency rank for that word in each text file and reports   #the highest rank  
+ 
+ 
+ 
+ 
+ 
+
