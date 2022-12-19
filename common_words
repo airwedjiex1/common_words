@@ -1,0 +1,278 @@
+#!/bin/bash
+
+#Author: Samuel Kent 22704037
+
+#common_words program that finds all the words in a text and from that the most common word
+#Can have two optional args: -nth or -w that are used seperately 
+
+# -nth option is followed by an integer N. then program is to report the word that is the Nth most common for the
+#largest number of files in the specified directory. Your program must also report the number of files for which that 
+#word is Nth most common
+
+# -w option is followed by a word. and then determines the frequency rank for that word in each text file and reports   #the highest rank  
+
+
+#variables to be used throughout
+
+
+export intgroup='^[1-9][0-9]*$' #int group regular expression, must be an int greater than 0  
+export wordgroup='^[a-zA-Z]+$' #for this assignment a word is a string of letters and case is preserved 
+
+
+export N_of_textfiles=0
+export N_of_empty=0
+
+#variables that become true if a certain arg given
+export w_on
+export nth_on
+export most_common_on 
+
+
+export highest_freq
+export highest_fname
+export curr_freq 
+
+
+export provided_word
+export provided_N
+export dir
+
+#usage
+#appears when no args are given or if more than 3 args are given 
+if [ $# -eq 0 ] || [ $# -gt 3 ]
+then 
+	echo "Usage: common_words [-w word | -nth N] <directory of text files>"
+	exit 1
+fi 
+
+
+#process the given arguments and ensure correct usage using case, shift and while
+while [[ $# -gt 0 ]]
+do
+	case $1 in
+                   	
+		-w)	if [[ -d $2 ]] #check that an operand for -w has been given, if dir is $2 than it cannot have been given  
+			then
+			echo "Operand for -w not provided"
+			exit 1
+			
+				elif ! [[ $2 =~ $wordgroup ]] #check that -w operand is a valid word (cannot be word-word )
+				then
+				echo "Operand for -w is not a valid word"
+				exit 1
+					
+					elif ! [[ -d $3 ]] #check that a directory given after the -w operand (ie at $3)
+					then 
+					echo "A directory must be provided"
+					exit 1 
+					fi	
+			
+			#set the neccasary variables for the -w arg after it's been checked to be valid 
+			provided_word=$2
+			dir=$3
+		       	w_on="true"	
+			shift;;	#shift such that $2 becomes $1 etc..
+			
+		-nth) 	if [[ -d $2 ]]
+                        then
+                        echo "Operand for -nth not provided"
+                        exit 1
+
+				elif ! [[ $2 =~ $intgroup ]] #operand belong to intgroup, ie is an int greater than 0  
+                                then
+                                echo "Operand for -nth argument must be an Integer and be greater than 0"
+                                exit 1
+				
+					elif ! [[ -d $3 ]] 
+                                        then
+                                        echo "A directory must be provided"
+                                        exit 1
+                                        fi
+			
+			provided_N=$2
+			dir=$3
+			nth_on="true"
+			shift;;
+
+		-*)     echo "Unknown argument $1" #if anything else following "-" is given is not a valid option
+                        exit 1;;
+	
+		 *)  if ! [[ -d $1 ]] #if only one arg given check it is a directory
+                        then
+                        echo "A directory must be provided"
+                        exit 1
+                        fi 	
+		
+			#if neither -nth or -w has been used and only a dir is given, than find the 1st most common 
+			if [ -z $nth_on ] && [ -z $w_on ] 
+			then 	
+                        dir=$1
+			most_common_on="true"
+			fi
+
+                        shift;;
+
+		esac
+	       	
+		shift 
+
+	done 
+
+
+
+
+#checking that the Directory is Usable: 
+#check there is atleast 1 non empty textfile in the directory
+if ! [ "$(ls -A $dir)" ] #returns number of files in a dir 
+then
+    	echo "Given directory $dir is empty"
+        exit 1 
+fi
+
+#for loop to find the number of textfiles in the directory, to be used later
+for f in $dir/*
+do 
+	N_of_textfiles=$(( $N_of_textfiles + 1 )) #iterate when a new txt file found
+
+
+	if [[ "$( wc -w $f | cut -d" " -f1 )" == "0" ]] #checks to see if the curretn text file is empty 
+	then
+		N_of_empty=$(( $N_of_empty + 1)) #iterate if empty file found
+	fi
+
+done
+
+#if the number of textfiles is equal to the N of empty textfiles than the dir has no textfiles that are not empty 
+if [[ "$N_of_textfiles" == "$N_of_empty" ]]
+then 
+	echo "must be atleast 1 non-empty textfile in the directory"
+	exit 1 
+fi
+
+
+
+
+
+
+
+#process for if -w used
+if [[ "$w_on" == "true" ]] #turned on earlier when -w <word> provided
+then 
+
+	#loop through each file in the dir
+	for f in $dir/*
+	do
+		
+		#get everyword in the file, remove duplicates, sort by order of how often they appear (highest on top), find the provided_word (ie the -w operand) and take the line number only (frequency)
+		grab_freq=$(tr -cs '[A-Za-z]' '\012' < $f | sort | uniq -c | sort -k 1nr | grep -nw "$provided_word" | cut -d':' -f1)
+		
+		if ! [[ -z $grab_freq ]] #if $grab_freq is not null ie exists in the current file, set it as the curr_frequency  
+		then 
+			curr_freq=$grab_freq 
+		fi
+
+		if [[ -z "$highest_freq" ]] #first time highest_freq is set, is when a word is found of any frequency ie is null
+		then
+		highest_freq=$curr_freq
+		highest_fname=$f 
+		
+			elif [[ "$curr_freq" -lt "$highest_freq" ]] #if curr_freq is lower, ie higher rank and more frequent. set it as the new highest_freq 
+			then 
+			highest_freq=$curr_freq
+			highest_fname=$f
+			fi
+
+	done
+
+		#if highest_freq is never set then the word was not found in any files
+		if [[ -z "$highest_freq" ]]
+		then 
+			echo "Word Not found in any files of this directory"
+			exit 0 #exit success the program has still worked as intended
+		fi
+
+#Output the result to the user, use sed to cut the directory name ie leave only the name of the file.txt		
+echo "The most significant rank for the word $provided_word is $highest_freq in file $( sed 's#.*/##' <<< "$highest_fname") "
+
+fi
+
+
+
+
+
+
+
+#process for when -nth is used 
+if [[ "$nth_on" == "true" || "$most_common_on" == "true" ]] #used if either -nth or no arg 
+then 
+	if [ "$most_common_on" == "true" ] && [ -z $nth_on ] #if no arg given set provided_N to 1 and act as if -nth 1 given  
+	then
+		provided_N="1"	
+	fi	
+
+	
+	#iterate through each file, outer loop
+	for f in $dir/*
+	do
+	
+	#order each word in current file ($f), arrange by frequency, search for line number N and take the name of the word at that frequency (line number) using awk   	
+	curr_word=$(tr -cs '[A-Za-z]' '\012' < $f | sort | uniq -c | sort -k 1nr | sed -n "$provided_N"p | awk '{s=$2} END {print s}')
+	
+	#since a word has been found in the first file set the count to 1, if no word is there (N too large for that file) and curr_word is null will be checked later
+	#ie reset the count as a new word is now being compared against the other files 	
+	curr_count=1
+
+		#inner loop that compares the word found in $f at Nth rank to the words in the same rank in every other file
+		for i in $dir/*
+		do
+			#find the word at the same N (frequency rank) but for $i 
+			curr_word_i=$(tr -cs '[A-Za-z]' '\012' < $i | sort | uniq -c | sort -k 1nr | sed -n "$provided_N"p | awk '{s=$2} END {print s}')
+
+			#compare the word found in the outer loop to word in the same pos for all other files, must be a different file to outer loop, and the word must not be null 
+		       	#if they are the same word than iterate the count, the word has been found at the same rank for another file	
+		       	if [ "$i" != "$f" ] && [ "$curr_word_i" == "$curr_word" ] && [ ! -z $curr_word_i ] 
+		       	then
+					
+			curr_count=$(( $curr_count + 1 ))
+
+			fi
+		done
+
+	#if highest_count hasnt been changed yet and the curr_word (in the outer loop) is non-null set it as the current highest
+	#ie set the first word encountered as the highest initially even if it is only in that posiiton once
+	if [ -z $highest_count ] && [ ! -z $curr_word ] 
+	then
+	highest_count=$curr_count
+	highest_wname=$curr_word
+
+	#if the current word is found to belong in more files at that rank than the current highest they will be swapped
+	elif [[ "$highest_count" -lt "$curr_count" ]]
+	then 
+	highest_count=$curr_count
+        highest_wname=$curr_word
+
+	fi
+
+
+	done 
+
+
+
+	#if highest_wname is never set, a non-null word has not been encountered at that rank. then the Nth word does not exist within any of the textfiles ie Nth is too large
+	if [[ -z $highest_wname ]]
+	then
+		echo ""$provided_N"th word is outside of the range for this directory"
+		exit 0 #program has still ran as intended
+	fi
+
+
+	#output for the user
+	echo "The "$provided_N"th most commmon word is "\""$highest_wname"\"" across $highest_count files"
+	exit 0
+
+fi 
+
+
+
+#end of script
+
