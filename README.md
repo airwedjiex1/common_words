@@ -3,7 +3,7 @@
    - michaelw 01/06/2022, 9:12:23 am
 
 # common_words
-A simple bash project - perfect score on auto marker
+A simple command line tool project - perfect score on auto marker
 
 #!/bin/bash
 
